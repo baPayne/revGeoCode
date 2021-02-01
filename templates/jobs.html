@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block pageCenterCol %}
+{%- for category, message in get_flashed_messages(with_categories = true) %}
+         <div class = "alert {{category}}">
+            {{ message }}
+         </div>
+{%- endfor %}
+
+<!--create space between form and table-->
+<p></p>
+<hr>
+
+<!--user table list-->
+<h3>Job List</h3>
+<table class = "table">
+  <thread>
+    <tr>
+      <th scope="col">Job ID</th>
+      <th scope="col">User ID</th>
+      <th scope="col">Filename</th>
+    </tr>
+  </thread>
+
+  <tbody>
+    {% for job in jobs %}
+       <tr>
+          <td>{{ job.trans_id }}</td>
+          <td>{{ job.user_id }}</td>
+          <td>{{ job.csvFile }}</td>
+          <td>
+            <form action="/delete-job.html/{{job.trans_id}}" method = "POST">
+              <input class="button" type="submit" id="Delete" name="del_job" value="Cancel & Delete">
+            </form>  
+          </td>
+          <td>
+            <form action="/cancel-job.html/{{job.trans_id}}" method = "POST">
+              <input class="button" type="submit" id="Cancel" name="can_job" value="Cancel">
+            </form>  
+          </td>
+       </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<!--end of table list-->
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
+
+{% block scripts %}
+
+{{super()}}
+
+{% endblock %}

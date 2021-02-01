@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block pageCenterCol %}
+{%- for category, message in get_flashed_messages(with_categories = true) %}
+         <div class = "alert {{category}}">
+            {{ message }}
+         </div>
+{%- endfor %}
+<!--form to manually create users-->
+<form action="/admin" method="POST" enctype="multipart/form-data">
+  <div>
+    <label for="inputFirstName"> First Name</label>
+    <input type="text" class="form-control" id="inputFirstName" name="inputFirstName" placeholder="First Name">
+  </div>
+
+  <div>
+    <label for="inputLastName"> Last Name</label>
+    <input type="text" class="form-control" id="inputLastName" name="inputLastName" placeholder="Last Name">
+  </div>
+
+  <div>
+    <label for="inputEmail">Email Address</label>
+    <input type="email" class="form-control" id="inputEmail" name="inputEmail" placeholder="email">
+  </div>
+
+  <div>
+    <label for="inputRole"> User Role</label>
+    <input type="text" class="form-control" id="inputRole" name="inputRole" placeholder="User Role">
+  </div>
+
+  <div>
+    <p></p>
+    <label for="acct">  </label>
+    <input type="submit" value="Create Account" id="acct"  name="acct" >
+  </div>
+</form>
+<!--end of form-->
+
+<!--create button to show job list-->
+<form action="/job-list" method="POST" enctype="multipart/form-data">
+  <div>
+    <p></p>
+    <label for="jobs">  </label>
+    <input type="submit" value="Show Job List" id="jobs"  name="jobs" >
+  </div>
+</form>
+<!--end of form-->
+
+<!--create space between form and table-->
+<p></p>
+<hr>
+
+<!--user table list-->
+<h3>Registered Users</h3>
+<table class = "table">
+  <thread>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">First Name</th>
+      <th scope="col">Last Name</th>
+      <th scope="col">Email Address</th>
+      <th scope="col">User Role</th>
+      <th scope="col">Edit</th>
+      <th scope="col">Delete</th>
+    </tr>
+  </thread>
+
+  <tbody>
+    {% for a in all_users %}
+       <tr>
+          <td>{{ a.id }}</td>
+          <td>{{ a.firstName }}</td>
+          <td>{{ a.lastName }}</td>
+          <td>{{ a.email }}</td>
+          <td>{{ a.role }}</td>
+          <td>
+            <form action="/edit-user.html/{{a.id}}" method = "POST">
+              <input class="button" type="submit" id="Edit" name="mod_user" value="Modify">
+            </form>
+          </td>
+          <td>
+            <form action="/delete-user.html/{{a.id}}" method = "POST">
+              <input class="button" type="submit" id="Delete" name="del_user" value="Delete">
+            </form>  
+          </td>
+       </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<!--end of table list-->
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
+
+{% block scripts %}
+
+{{super()}}
+
+{% endblock %}

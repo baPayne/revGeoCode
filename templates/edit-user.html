@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block pageCenterCol %}
+{%- for category, message in get_flashed_messages(with_categories = true) %}
+         <div class = "alert alert-danger">
+            {{ message }}
+         </div>
+{%- endfor %}
+<!--form to manually create users-->
+<form action="/update-user/{{user.id}}" method="POST" enctype="multipart/form-data">
+  <div>
+    <label for="inputFirstName"> First Name</label>
+    <input type="text" class="form-control" id="inputFirstName" name="inputFirstName" placeholder="First Name" value = "{{user.firstName}}">
+  </div>
+
+  <div>
+    <label for="inputLastName"> Last Name</label>
+    <input type="text" class="form-control" id="inputLastName" name="inputLastName" placeholder="Last Name" value = "{{user.lastName}}">
+  </div>
+
+  <div>
+    <label for="inputEmail">Email Address</label>
+    <input type="email" class="form-control" id="inputEmail" name="inputEmail" placeholder="email" value = "{{user.email}}">
+  </div>
+
+  <div>
+    <label for="inputRole"> User Role</label>
+    <input type="text" class="form-control" id="inputRole" name="inputRole" placeholder="User Role" value = "{{user.role}}">
+  </div>
+
+  <div>
+    <p></p>
+    <label for="acct"> </label>
+    <input type="submit" value="Update Record" id="acct"  name="acct" >
+    <p></p>
+  </div>
+</form>
+<!--end of form-->
+
+
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
+
+{% block scripts %}
+
+{{super()}}
+
+{% endblock %}
