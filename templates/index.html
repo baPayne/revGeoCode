@@ -8,7 +8,7 @@
 <form action="/" method="POST" enctype="multipart/form-data">
 
   <div class="custom-file">
-    <label for="myFile" class="custom-file-label">Choose File to upload...</label>
+    <label for="uploadInput" class="custom-file-label" id="fileNameLabel">Choose File(s) to upload...</label>
     <input class="custom-file-input" type="file" id="uploadInput" name="myFile">
   </div>    
 
@@ -54,10 +54,21 @@
         sOutput = nApprox.toFixed(3) + " " + aMultiples[nMultiple] + " (" + nBytes + " bytes)";
       }
       // end of optional code
+      console.log(nFiles)
       document.getElementById("fileNum").innerHTML = nFiles;
       document.getElementById("fileSize").innerHTML = sOutput;
+      
     }
   
     document.getElementById("uploadInput").addEventListener("change", updateSize, false);
+    /* show file value after file select */
+    document.querySelector('.custom-file-input').addEventListener('change',function(e){
+      var fileName = document.getElementById("uploadInput").files[0].name;
+      console.log("File Name: " + fileName)
+      document.getElementById("fileNameLabel").innerHTML = fileName;
+          
+    })
+
+
 </script>    
 {% endblock %}
