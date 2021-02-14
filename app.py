@@ -23,10 +23,7 @@ from user import User
 
 # Configuration --google auth
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", None)
-
-#GOOGLE_CLIENT_ID = "724036364612-h16ghac75fvdghqoirb48n0tbmb1s8rl.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", None)
-#GOOGLE_CLIENT_SECRET = "fGkuduY0-e5ZP2rzToVutyTh"
 GOOGLE_DISCOVERY_URL = (
     "https://accounts.google.com/.well-known/openid-configuration"
 )
