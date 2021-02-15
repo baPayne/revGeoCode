@@ -20,32 +20,23 @@ import requests
 # Internal imports
 from db import init_db_command
 from user import User
+import config
+
+
 
 # Configuration --google auth
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", None)
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", None)
-GOOGLE_DISCOVERY_URL = (
-    "https://accounts.google.com/.well-known/openid-configuration"
-)
-
-
-
-
 app = Flask(__name__)
 app.config["CSV_UPLOADS"] = "uploads"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.sqlite3'
 app.config['SECRET_KEY'] = "random string"
 Bootstrap(app)
-
 # User session management setup--google auth
 # https://flask-login.readthedocs.io/en/latest
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-
-
 # OAuth 2 client setup
-client = WebApplicationClient(GOOGLE_CLIENT_ID)
+client = WebApplicationClient(config.GOOGLE_CLIENT_ID)
 
 # Flask-Login helper to retrieve a user from our db
 @login_manager.user_loader
@@ -53,7 +44,20 @@ def load_user(user_id):
     return User.get(user_id)
 
 def get_google_provider_cfg():
-    return requests.get(GOOGLE_DISCOVERY_URL).json()    
+    return requests.get(config.GOOGLE_DISCOVERY_URL).json() 
+
+def setLoginOutUrl():
+    if current_user.is_authenticated == False:
+        return 'login'     
+    else:
+        return 'logout'    
+
+def checkUser():
+    if current_user.is_authenticated == False:
+        return "Login with Google account..."    
+    else:
+        return "Logout, " + str(current_user.email)   
+        
 
 # Naive database setup
     try:
@@ -95,10 +99,13 @@ def reverseGeocode(coords):
         print(res)  
  
 
+
+
 @app.route('/', methods =["GET", "POST"])
 def index():
     
     if request.method == "POST":
+        
         if request.files:
             importFile = request.files["myFile"]
         #    print(importFile.filename)
@@ -123,19 +130,11 @@ def index():
                 if suffix >= 99: 
                     flash("File could not be uploaded. Please rename and try again", 'error')
                     break
-                
-        #    csvReader(importFile.filename)
-        #    return redirect(request.url)
-                        
-           
-            # add transaction to processing list
-            
-
-    return render_template('index.html')
+    return render_template('index.html', currentUser=checkUser(), login_out=setLoginOutUrl())
 #test routes for authentication    
 @app.route("/auth")
 def index1():
-    print(GOOGLE_CLIENT_ID)
+    print(config.GOOGLE_CLIENT_ID)
     if current_user.is_authenticated:
         return (
             "<p>Hello, {}! You're logged in! Email: {}</p>"
@@ -183,7 +182,7 @@ def callback():
         token_url,
         headers=headers,
         data=body,
-        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
+        auth=(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET),
     )
 
     # Parse the tokens!
@@ -228,7 +227,7 @@ def callback():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for("index1"))
+    return redirect(url_for("index"))
 
 
 
@@ -243,7 +242,7 @@ def admin():
             db.session.commit()
             flash('New Record Added!', 'success')
             
-    return render_template('admin.html',all_users = users.query.all() ) 
+    return render_template('admin.html',all_users = users.query.all(), currentUser=checkUser(), login_out=setLoginOutUrl() ) 
 
 @app.route('/delete-user.html/<user_id>', methods =["GET", "POST"])
 def delete_user(user_id):
@@ -260,7 +259,7 @@ def delete_user(user_id):
 def edit_user(user_id):
     if request.method == 'POST':
         user = users.query.get(user_id)
-        return render_template('/edit-user.html', user=user)
+        return render_template('/edit-user.html', user=user, currentUser=checkUser(), login_out=setLoginOutUrl())
     #else: if not post, then redirect somewhere else
         
 @app.route('/update-user/<user_id>', methods =["GET", "POST"])
@@ -281,7 +280,7 @@ def update_user(user_id):
 
 @app.route('/job-list', methods=['GET','POST'])
 def show_jobs():
-    return render_template('jobs.html', jobs=trans.query.all())  
+    return render_template('jobs.html', jobs=trans.query.all(), currentUser=checkUser(), login_out=setLoginOutUrl())  
 
 @app.route('/delete-job.html/<trans_id>', methods =["GET", "POST"])
 def delete_job(trans_id):
