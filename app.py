@@ -2,7 +2,7 @@ from flask import Flask, flash, render_template, request, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 import csv, os
-import reverse_geocoder as rg
+
 import re
 import json
 import os
@@ -22,6 +22,13 @@ from db import init_db_command
 from user import User
 import config
 
+#redis rq ################
+from rq import Queue
+from worker import conn
+
+q = Queue(connection=conn)
+from worker_func import reverseGeocode
+###########################
 
 
 # Configuration --google auth
@@ -92,11 +99,7 @@ class trans(db.Model):
         self.user_id = user_id
         self.csvFile = csvFile        
 
-#reverse geocode function
-def reverseGeocode(coords):
-    result = rg.search(coords)
-    for res in result:
-        print(res)  
+
  
 
 
@@ -126,6 +129,7 @@ def index():
                     db.session.add(job)
                     db.session.commit()
                     flash("Job number " + str(job.trans_id) +" has been added.", 'info')
+                    result = q.enqueue(reverseGeocode(filename), 'http://127.0.0.1')
                     break
                 if suffix >= 99: 
                     flash("File could not be uploaded. Please rename and try again", 'error')
@@ -321,7 +325,7 @@ def csvReader(in_file):
        
 
 if __name__ == "__main__":
-    app.run(debug =True,ssl_context="adhoc")
-    db.create_all()
+    app.run(debug =True) #,ssl_context="adhoc"
+    
 
     
