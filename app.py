@@ -123,8 +123,7 @@ def index():
                 print(filename)
                 if not os.path.exists(filename):
                     break        
-                else: 
-                    flash("File could not be uploaded. Please rename and try again", 'error')  
+                
 
             if not os.path.exists(filename):              
                 user = users.query.filter(users.email == request.form['userEmail']).first()
@@ -136,6 +135,8 @@ def index():
                 result = q.enqueue(csvReader, filename)
                 print(result.get_id()+str(len(q)))
                 redirect(url_for("processing"))
+            else: 
+                flash("File could not be uploaded. Please rename and try again", 'error')      
             
                     
     return render_template('index.html', currentUser=checkUser(), login_out=setLoginOutUrl())
