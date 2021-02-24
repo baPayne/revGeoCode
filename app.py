@@ -27,7 +27,7 @@ from rq import Queue
 from worker import conn
 
 q = Queue(connection=conn)
-from worker_func import reverseGeocode
+from worker_func import csvReader
 ###########################
 
 
@@ -35,7 +35,9 @@ from worker_func import reverseGeocode
 app = Flask(__name__)
 app.config["CSV_UPLOADS"] = "uploads"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.sqlite3'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = "random string"
+
 Bootstrap(app)
 # User session management setup--google auth
 # https://flask-login.readthedocs.io/en/latest
@@ -111,29 +113,31 @@ def index():
         
         if request.files:
             importFile = request.files["myFile"]
-        #    print(importFile.filename)
             filename = os.path.join(app.config["CSV_UPLOADS"], importFile.filename)
             filenameBase = filename
-            #filenameBase =  importFile.filename
-
             suffix = 0
-            while True:
+            for x in range (0,99):
                 suffix = suffix + 1
                 strng = "_" + str(suffix) + ".csv"
                 filename = filenameBase.replace(".csv", strng)
                 print(filename)
                 if not os.path.exists(filename):
-                    importFile.save(filename)
-                    user = users.query.filter(users.email == request.form['userEmail']).first()
-                    job = trans(user_id=user.id ,csvFile=filename)
-                    db.session.add(job)
-                    db.session.commit()
-                    flash("Job number " + str(job.trans_id) +" has been added.", 'info')
-                    result = q.enqueue(reverseGeocode(filename), 'http://127.0.0.1')
-                    break
-                if suffix >= 99: 
-                    flash("File could not be uploaded. Please rename and try again", 'error')
-                    break
+                    break        
+                else: 
+                    flash("File could not be uploaded. Please rename and try again", 'error')  
+
+            if not os.path.exists(filename):              
+                user = users.query.filter(users.email == request.form['userEmail']).first()
+                importFile.save(filename)
+                job = trans(user_id=user.id ,csvFile=filename)
+                db.session.add(job)
+                db.session.commit()
+                flash("Job number " + str(job.trans_id) +" has been added.", 'info')
+                result = q.enqueue(csvReader, filename)
+                print(result.get_id()+str(len(q)))
+                redirect(url_for("processing"))
+            
+                    
     return render_template('index.html', currentUser=checkUser(), login_out=setLoginOutUrl())
 #test routes for authentication    
 @app.route("/auth")
@@ -233,6 +237,11 @@ def logout():
     logout_user()
     return redirect(url_for("index"))
 
+@app.route("/processing")
+def processing():
+    return render_template("processing.html")
+     
+
 
 
 @app.route('/admin', methods =["GET", "POST"])
@@ -314,18 +323,11 @@ def cancel_job(trans_id):
         
              
 
-#read contents of uploaded csv File
-def csvReader(in_file):
-    with open(os.path.join(app.config["CSV_UPLOADS"], in_file), newline='') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        for line in reader:
-            coords = (line[0], line[1])
-            reverseGeocode(coords)
-            print(line)
+
        
 
 if __name__ == "__main__":
-    app.run(debug =True) #,ssl_context="adhoc"
+    app.run(debug =True,ssl_context="adhoc") #,ssl_context="adhoc"
     
 
     
