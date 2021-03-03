@@ -34,6 +34,7 @@ from worker_func import csvReader
 # Configuration --google auth
 app = Flask(__name__)
 app.config["CSV_UPLOADS"] = "uploads"
+app.config["COMPLETED_JOBS"] = "processed_files"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.sqlite3'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = "random string"
@@ -128,11 +129,17 @@ def index():
             if not os.path.exists(filename):              
                 user = users.query.filter(users.email == request.form['userEmail']).first()
                 importFile.save(filename)
+                outputFilename = "out_" + str(suffix) + "_" + importFile.filename
+                outputFilename = os.path.join(app.config["COMPLETED_JOBS"], outputFilename)
+                outputFile = open(outputFilename,'w',newline = '')
+                outputFile.write("Report prepared for " + user.email + "\nLatitude,Longitude,City,State,Country\n")
+                outputFile.close()
                 job = trans(user_id=user.id ,csvFile=filename)
                 db.session.add(job)
                 db.session.commit()
                 flash("Job number " + str(job.trans_id) +" has been added.", 'info')
-                result = q.enqueue(csvReader, filename)
+                
+                result = q.enqueue(csvReader, job_timeout='5h', args=(filename, outputFilename,user.email,))
                 print(result.get_id()+str(len(q)))
                 redirect(url_for("processing"))
             else: 
@@ -319,12 +326,6 @@ def cancel_job(trans_id):
         db.session.commit()
         flash("Job " + str(trans_id)  + " has been canceled, but file remains", 'info')
         return redirect('/job-list') 
-                   
-        
-        
-             
-
-
        
 
 if __name__ == "__main__":
