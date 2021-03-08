@@ -52,7 +52,7 @@ client = WebApplicationClient(config.GOOGLE_CLIENT_ID)
 @login_manager.user_loader
 def load_user(user_id):
     return User.get(user_id)
-
+   
 def get_google_provider_cfg():
     return requests.get(config.GOOGLE_DISCOVERY_URL).json() 
 
@@ -80,27 +80,31 @@ def checkUser():
 #db 
 db = SQLAlchemy(app)
 #create db model
-class users(db.Model):
-    id = db.Column('user_id', db.Integer, primary_key = True)
-    firstName = db.Column('FirstName', db.String(25))
-    lastName = db.Column('LastName', db.String(25))
-    email = db.Column('Email', db.String(50))
-    role = db.Column('Role', db.String(10))
+# class users(db.Model):
+#     id = db.Column('user_id', db.Integer, primary_key = True)
+#     firstName = db.Column('FirstName', db.String(25))
+#     lastName = db.Column('LastName', db.String(25))
+#     email = db.Column('Email', db.String(50))
+#     role = db.Column('Role', db.String(10))
+#     profile_pic =  
 
-    def __init__(self, firstName, lastName, email, role):
-        self.firstName = firstName
-        self.lastName = lastName
-        self.email = email
-        self.role = role  
+#     def __init__(self, firstName, lastName, email, role):
+#         self.firstName = firstName
+#         self.lastName = lastName
+#         self.email = email
+#         self.role = role  
+#         self.profile_pic = profile_pic
 
 class trans(db.Model):
     trans_id = db.Column('trans_id', db.Integer, primary_key = True)
-    user_id = db.Column('user_id', db.Integer)
+    user_id = db.Column('user_id', db.Float)
     csvFile = db.Column('filename', db.String(100))  
+    status = db.Column('status', db.String(100))
 
-    def __init__(self, user_id, csvFile):
+    def __init__(self, user_id, csvFile, status):
         self.user_id = user_id
-        self.csvFile = csvFile        
+        self.csvFile = csvFile 
+        self.status = status       
 
 
  
@@ -127,20 +131,20 @@ def index():
                 
 
             if not os.path.exists(filename):              
-                user = users.query.filter(users.email == request.form['userEmail']).first()
+                #user = users.query.filter(users.email == request.form['userEmail']).first()
                 importFile.save(filename)
                 outputFilename = "out_" + str(suffix) + "_" + importFile.filename
                 outputFilename = os.path.join(app.config["COMPLETED_JOBS"], outputFilename)
                 outputFile = open(outputFilename,'w',newline = '')
-                outputFile.write("Report prepared for " + user.email + "\nLatitude,Longitude,City,State,Country\n")
+                outputFile.write("Report prepared for " + current_user.email + "\nLatitude,Longitude,City,State,Country\n")
                 outputFile.close()
-                job = trans(user_id=user.id ,csvFile=filename)
+                job = trans(user_id=float(current_user.id), csvFile=filename, status="enqueue")
                 db.session.add(job)
                 db.session.commit()
                 flash("Job number " + str(job.trans_id) +" has been added.", 'info')
                 
-                result = q.enqueue(csvReader, job_timeout='5h', args=(filename, outputFilename,user.email,))
-                print(result.get_id()+str(len(q)))
+                result = q.enqueue(csvReader, job_timeout='5h', args=(filename, outputFilename,current_user.email, job.trans_id,))
+                print(result.get_id()+ " Queue Length: " + str(len(q)))
                 redirect(url_for("processing"))
             else: 
                 flash("File could not be uploaded. Please rename and try again", 'error')      
@@ -148,20 +152,20 @@ def index():
                     
     return render_template('index.html', currentUser=checkUser(), login_out=setLoginOutUrl())
 #test routes for authentication    
-@app.route("/auth")
-def index1():
-    print(config.GOOGLE_CLIENT_ID)
-    if current_user.is_authenticated:
-        return (
-            "<p>Hello, {}! You're logged in! Email: {}</p>"
-            "<div><p>Google Profile Picture:</p>"
-            '<img src="{}" alt="Google profile pic"></img></div>'
-            '<a class="button" href="/logout">Logout</a>'.format(
-                current_user.name, current_user.email, current_user.profile_pic
-            )
-        )
-    else:
-        return '<a class="button" href="/login">Google Login</a>'  
+# @app.route("/auth")
+# def index1():
+#     print(config.GOOGLE_CLIENT_ID)
+#     if current_user.is_authenticated:
+#         return (
+#             "<p>Hello, {}! You're logged in! Email: {}</p>"
+#             "<div><p>Google Profile Picture:</p>"
+#             '<img src="{}" alt="Google profile pic"></img></div>'
+#             '<a class="button" href="/logout">Logout</a>'.format(
+#                 current_user.name, current_user.email, current_user.profile_pic
+#             )
+#         )
+#     else:
+#         return '<a class="button" href="/login">Google Login</a>'  
 
 @app.route("/login")
 def login():
@@ -219,19 +223,20 @@ def callback():
         users_email = userinfo_response.json()["email"]
         picture = userinfo_response.json()["picture"]
         users_name = userinfo_response.json()["given_name"]
+        role = "user"
     else:
         return "User email not available or not verified by Google.", 400
 
     # Create a user in your db with the information provided
     # by Google
     user = User(
-        id_=unique_id, name=users_name, email=users_email, profile_pic=picture
+        id_=unique_id, name=users_name, email=users_email, profile_pic=picture, role=role
     )
 
 
     # Doesn't exist? Add it to the database.
     if not User.get(unique_id):
-        User.create(unique_id, users_name, users_email, picture)
+        User.create(unique_id, users_name, users_email, picture, role)
 
     # Begin user session by logging the user in
     login_user(user)
@@ -258,9 +263,12 @@ def admin():
         if not request.form['inputFirstName'] or not request.form['inputLastName'] or not request.form['inputEmail'] or not request.form['inputRole']:
            flash("Please complete all fields", 'error')
         else:
-            user = users(firstName=request.form['inputFirstName'], lastName=request.form['inputLastName'], email=request.form['inputEmail'], role=request.form['inputRole'])   
-            db.session.add(user)
-            db.session.commit()
+            #user = users(firstName=request.form['inputFirstName'], lastName=request.form['inputLastName'], email=request.form['inputEmail'], role=request.form['inputRole'])   
+            #db.session.add(user)
+            #db.session.commit()
+            user = User(name=(request.form['inputFirstName'] + rquest.form['inputLastName']), email=request.form['inputEmail'], role=request.form['inputRole'])
+            User.create(unique_id, users_name, users_email,role)
+
             flash('New Record Added!', 'success')
             
     return render_template('admin.html',all_users = users.query.all(), currentUser=checkUser(), login_out=setLoginOutUrl() ) 
