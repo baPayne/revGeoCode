@@ -64,4 +64,15 @@
   .alert.info {
     background-color: lightblue;
   }
-  
+
+/*when a value is selected, this class removes the content */
+.custom-file-input.selected:lang(en)::after {
+  content: "" !important;
+}
+
+.custom-file {
+  overflow: hidden;
+}
+.custom-file-input {
+  white-space: nowrap;
+}  
