@@ -11,18 +11,18 @@ conn = sqlite3.connect('users.sqlite3')
 print("DB opened from worker_func")
 
 #get current job and change status to in process
-def getJob(job_nmbr):
-    conn.execute("UPDATE trans set status = \"in process\" WHERE trans_id = ?", (job_nmbr,))
-    conn.commit()
-    job = conn.execute("SELECT trans_id, status FROM trans WHERE trans_id = ?", (job_nmbr,)).fetchone()
-    return (job[1])
+# def getJob(job_nmbr):
+#     conn.execute("UPDATE trans set status = \"in process\" WHERE trans_id = ?", (job_nmbr,))
+#     conn.commit()
+#     job = conn.execute("SELECT trans_id, status FROM trans WHERE trans_id = ?", (job_nmbr,)).fetchone()
+#     return (job[1])
 
 #get current job and change status to complete
-def finishJob(job_nmbr):
-    conn.execute("UPDATE trans set status = \"complete\" WHERE trans_id = ?", (job_nmbr,))
-    conn.commit()
-    job = conn.execute("SELECT trans_id, status FROM trans WHERE trans_id = ?", (job_nmbr,)).fetchone()
-    return (job[1])  
+# def finishJob(job_nmbr):
+#     conn.execute("UPDATE trans set status = \"complete\" WHERE trans_id = ?", (job_nmbr,))
+#     conn.commit()
+#     job = conn.execute("SELECT trans_id, status FROM trans WHERE trans_id = ?", (job_nmbr,)).fetchone()
+#     return (job[1])  
 
 
 #sendemail
@@ -47,8 +47,8 @@ def reverseGeocode(coords):
 #read contents of uploaded csv File
 def csvReader(in_file,outputFilename,emailaddr,job_id):
 
-    status = getJob(job_id)
-    print(status)
+    #status = getJob(job_id)
+    #print(status)
         
     with open(outputFilename, 'a', newline='') as csvfile_out:
         writer = csv.writer(csvfile_out, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -81,8 +81,8 @@ def csvReader(in_file,outputFilename,emailaddr,job_id):
                         continue   
 
                     
-    status = finishJob(job_id)
-    print(status)
+    # status = finishJob(job_id)
+    # print(status)
     conn.close()
     csvfile_out.close()
     sendEmailAtt(emailaddr,outputFilename)

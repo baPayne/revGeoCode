@@ -14,8 +14,11 @@ from flask_login import (
     login_user,
     logout_user,
 )
+from flask_migrate import Migrate
 from oauthlib.oauth2 import WebApplicationClient
 import requests
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 # Internal imports
 from db import init_db_command
@@ -25,10 +28,56 @@ import config
 #redis rq ################
 from rq import Queue
 from worker import conn
+from rq.job import Job
 
 q = Queue(connection=conn)
+failed_jobs = q.failed_job_registry
+
+
 from worker_func import csvReader
 ###########################
+
+def setOutputName(filename,email):
+    filename = filename.replace("uploads/","")
+    outputFilename = "out_" + filename
+    outputFilename = os.path.join(app.config["COMPLETED_JOBS"], outputFilename)
+    outputFile = open(outputFilename,'w',newline = '')
+    outputFile.write("Report prepared for " + email + "\nLatitude,Longitude,City,State,Country\n")
+    outputFile.close()
+    return outputFilename
+
+def reloadJob():
+    jobs = trans.query.all()
+    
+    q_len = len(q)
+    # q.empty()
+    print(f"There are currently {q_len} jobs being processed...")
+    for job in jobs:
+        #adding newly created jobs to the queue
+        if job.status == "created":
+            result = q.enqueue(csvReader, job_timeout='5h', args=(job.csvFile, job.out_filename, job.email, job.trans_id,))
+            job.queueJobId = result.id
+        #update worker queue status  
+        if job.status != None or job.status != "complete" or job.status != "finished":
+            thisJob =  Job.fetch(job.queueJobId, connection=conn)
+            job.status = thisJob.get_status()
+    #are there any failed jobs?
+    print(f"There are {len(failed_jobs)} failed jobs...")
+    if len(failed_jobs) > 0:
+        for job_id in failed_jobs.get_job_ids():
+            failed_jobs.requeue(job_id)  # Puts job back in its original queue
+    assert (len(failed_jobs) == 0, "There are still failed jobs...")  # Registry will be empty when job is requeued
+            
+    db.session.commit()
+
+
+
+
+
+#create and schedule incomplete jobs
+scheduler = BackgroundScheduler()
+job = scheduler.add_job(reloadJob, 'interval', minutes=1)
+scheduler.start()
 
 
 # Configuration --google auth
@@ -79,37 +128,29 @@ def checkUser():
 
 #db 
 db = SQLAlchemy(app)
-#create db model
-# class users(db.Model):
-#     id = db.Column('user_id', db.Integer, primary_key = True)
-#     firstName = db.Column('FirstName', db.String(25))
-#     lastName = db.Column('LastName', db.String(25))
-#     email = db.Column('Email', db.String(50))
-#     role = db.Column('Role', db.String(10))
-#     profile_pic =  
-
-#     def __init__(self, firstName, lastName, email, role):
-#         self.firstName = firstName
-#         self.lastName = lastName
-#         self.email = email
-#         self.role = role  
-#         self.profile_pic = profile_pic
+#class used to support command line db modifications
+Migrate(app,db)
+#after changes are made to the db, run the following cli commands,
+#flask db init
+#flask db migrate -m "description of change"
+#flask db upgrade
 
 class trans(db.Model):
     trans_id = db.Column('trans_id', db.Integer, primary_key = True)
-    user_id = db.Column('user_id', db.Float)
+    user_id = db.Column('user_id', db.Text)
+    email = db.Column('email', db.String(100))
     csvFile = db.Column('filename', db.String(100))  
     status = db.Column('status', db.String(100))
+    out_filename = db.Column('out_filename', db.String(100))
+    queueJobId = db.Column('queueJobId', db.String(100))
 
-    def __init__(self, user_id, csvFile, status):
+    def __init__(self, user_id, email, csvFile, status, out_filename, queueJobId):
         self.user_id = user_id
+        self.email = email
         self.csvFile = csvFile 
-        self.status = status       
-
-
- 
-
-
+        self.status = status   
+        self.out_filename = out_filename    
+        self.queueJobId = queueJobId
 
 @app.route('/', methods =["GET", "POST"])
 def index():
@@ -133,18 +174,15 @@ def index():
             if not os.path.exists(filename):              
                 #user = users.query.filter(users.email == request.form['userEmail']).first()
                 importFile.save(filename)
-                outputFilename = "out_" + str(suffix) + "_" + importFile.filename
-                outputFilename = os.path.join(app.config["COMPLETED_JOBS"], outputFilename)
-                outputFile = open(outputFilename,'w',newline = '')
-                outputFile.write("Report prepared for " + current_user.email + "\nLatitude,Longitude,City,State,Country\n")
-                outputFile.close()
-                job = trans(user_id=float(current_user.id), csvFile=filename, status="enqueue")
+                #add job to trans table
+                job = trans(user_id=current_user.id, email=current_user.email, csvFile=filename, status="created", 
+                            out_filename=setOutputName(filename,current_user.email), queueJobId="not assigned")
                 db.session.add(job)
                 db.session.commit()
                 flash("Job number " + str(job.trans_id) +" has been added.", 'info')
                 
-                result = q.enqueue(csvReader, job_timeout='5h', args=(filename, outputFilename,current_user.email, job.trans_id,))
-                print(result.get_id()+ " Queue Length: " + str(len(q)))
+                # result = q.enqueue(csvReader, job_timeout='5h', args=(filename, outputFilename,current_user.email, job.trans_id,))
+                #print(result.get_id()+ " Queue Length: " + str(len(q)))
                 redirect(url_for("processing"))
             else: 
                 flash("File could not be uploaded. Please rename and try again", 'error')      
